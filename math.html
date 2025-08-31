@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jake's Loan Amortization Analysis</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .presentation-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .slide {
+            min-height: 100vh;
+            padding: 60px 40px;
+            display: none;
+            animation: slideIn 0.6s ease-out;
+        }
+
+        .slide.active {
+            display: block;
+        }
+
+        .slide h1 {
+            font-size: 3em;
+            text-align: center;
+            margin-bottom: 30px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            background: linear-gradient(45deg, #fff, #e3f2fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .slide h2 {
+            font-size: 2.5em;
+            color: #64b5f6;
+            margin-bottom: 25px;
+            border-bottom: 3px solid #42a5f5;
+            padding-bottom: 10px;
+        }
+
+        .slide h3 {
+            font-size: 1.8em;
+            color: #90caf9;
+            margin-bottom: 20px;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-top: 30px;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .formula-box {
+            background: rgba(33,150,243,0.2);
+            border: 2px solid #2196f3;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 1.2em;
+            text-align: center;
+        }
+
+        .calculation-steps {
+            background: rgba(76,175,80,0.2);
+            border-left: 5px solid #4caf50;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .result-highlight {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 1.3em;
+            font-weight: bold;
+            margin: 20px 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .navigation {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            margin: 0 5px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn:hover {
+            background: #1976d2;
+            transform: translateY(-2px);
+        }
+
+        .slide-counter {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .table th, .table td {
+            padding: 15px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .table th {
+            background: rgba(33,150,243,0.3);
+            font-weight: bold;
+        }
+
+        ul {
+            font-size: 1.1em;
+            line-height: 1.8;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .insight-box {
+            background: rgba(255,193,7,0.2);
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .insight-box h4 {
+            color: #ffc107;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="presentation-container">
+        <!-- Slide 1: Title -->
+        <div class="slide active">
+            <h1>Jake's Loan Amortization Analysis</h1>
+            <div style="text-align: center; margin-top: 50px;">
+                <div class="card" style="max-width: 600px; margin: 0 auto;">
+                    <h3>Scenario 3: Acquiring Loans</h3>
+                    <p style="font-size: 1.3em; line-height: 1.6;">
+                        Jake takes a ₱50,000 loan at 5% annual interest, to be repaid in 5 equal yearly installments.
+                    </p>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 40px;">
+                <p style="font-size: 1.1em; opacity: 0.8;">
+                    Financial Mathematics Analysis using Geometric Sequences
+                </p>
+            </div>
+        </div>
+
+        <!-- Slide 2: Problem Setup -->
+        <div class="slide">
+            <h2>Problem Setup & Given Information</h2>
+            <div class="content-grid">
+                <div class="card">
+                    <h3>Loan Details</h3>
+                    <ul>
+                        <li><strong>Principal (P):</strong> ₱50,000</li>
+                        <li><strong>Annual Interest Rate (r):</strong> 5% = 0.05</li>
+                        <li><strong>Loan Term (n):</strong> 5 years</li>
+                        <li><strong>Payment Type:</strong> Equal annual installments</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>What We Need to Find</h3>
+                    <ul>
+                        <li>Annual payment amount (A)</li>
+                        <li>Total amount paid over 5 years</li>
+                        <li>Total interest paid</li>
+                        <li>Amortization schedule</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Mathematical Formula -->
+        <div class="slide">
+            <h2>Mathematical Modeling: Loan Payment Formula</h2>
+            <div class="card">
+                <h3>Present Value of Annuity Formula</h3>
+                <div class="formula-box">
+                    A = P × [r(1+r)ⁿ] / [(1+r)ⁿ - 1]
+                </div>
+                <p style="font-size: 1.1em; margin-top: 20px;">Where:</p>
+                <ul>
+                    <li><strong>A</strong> = Annual payment amount</li>
+                    <li><strong>P</strong> = Principal loan amount (₱50,000)</li>
+                    <li><strong>r</strong> = Annual interest rate (0.05)</li>
+                    <li><strong>n</strong> = Number of payments (5)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 4: Calculation Process -->
+        <div class="slide">
+            <h2>Step-by-Step Calculation</h2>
+            <div class="calculation-steps">
+                <h3>Step 1: Calculate (1+r)ⁿ</h3>
+                <p>(1 + 0.05)⁵ = (1.05)⁵ = 1.2762815625</p>
+            </div>
+            <div class="calculation-steps">
+                <h3>Step 2: Calculate the numerator</h3>
+                <p>r × (1+r)ⁿ = 0.05 × 1.2762815625 = 0.0638140781</p>
+            </div>
+            <div class="calculation-steps">
+                <h3>Step 3: Calculate the denominator</h3>
+                <p>(1+r)ⁿ - 1 = 1.2762815625 - 1 = 0.2762815625</p>
+            </div>
+            <div class="calculation-steps">
+                <h3>Step 4: Final calculation</h3>
+                <p>A = ₱50,000 × (0.0638140781 ÷ 0.2762815625)</p>
+                <p>A = ₱50,000 × 0.230975</p>
+            </div>
+            <div class="result-highlight">
+                Annual Payment = ₱11,548.74
+            </div>
+        </div>
+
+        <!-- Slide 5: Amortization Schedule -->
+        <div class="slide">
+            <h2>Amortization Schedule</h2>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Year</th>
+                        <th>Beginning Balance</th>
+                        <th>Payment</th>
+                        <th>Interest</th>
+                        <th>Principal</th>
+                        <th>Ending Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>₱50,000.00</td>
+                        <td>₱11,548.74</td>
+                        <td>₱2,500.00</td>
+                        <td>₱9,048.74</td>
+                        <td>₱40,951.26</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>₱40,951.26</td>
+                        <td>₱11,548.74</td>
+                        <td>₱2,047.56</td>
+                        <td>₱9,501.18</td>
+                        <td>₱31,450.08</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>₱31,450.08</td>
+                        <td>₱11,548.74</td>
+                        <td>₱1,572.50</td>
+                        <td>₱9,976.24</td>
+                        <td>₱21,473.84</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td>₱21,473.84</td>
+                        <td>₱11,548.74</td>
+                        <td>₱1,073.69</td>
+                        <td>₱10,475.05</td>
+                        <td>₱10,998.79</td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td>₱10,998.79</td>
+                        <td>₱11,548.74</td>
+                        <td>₱549.94</td>
+                        <td>₱10,998.80</td>
+                        <td>₱0.00</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Slide 6: Financial Summary -->
+        <div class="slide">
+            <h2>Financial Summary & Key Results</h2>
+            <div class="content-grid">
+                <div class="card">
+                    <h3>Payment Summary</h3>
+                    <ul>
+                        <li><strong>Annual Payment:</strong> ₱11,548.74</li>
+                        <li><strong>Total Payments:</strong> ₱57,743.70</li>
+                        <li><strong>Total Interest:</strong> ₱7,743.70</li>
+                        <li><strong>Interest Rate:</strong> 15.49% of principal</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>Geometric Sequence Analysis</h3>
+                    <ul>
+                        <li>Each year's principal portion increases</li>
+                        <li>Each year's interest portion decreases</li>
+                        <li>Outstanding balance forms geometric progression</li>
+                        <li>Loan fully amortized over 5 years</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: Decision-Making Insights -->
+        <div class="slide">
+            <h2>Decision-Making Insights</h2>
+            <div class="insight-box">
+                <h4>Financial Decision Analysis (2-3 sentences)</h4>
+                <p>Taking this loan at 5% annual interest is reasonable for Jake if the borrowed funds can generate returns exceeding 5% annually or fulfill essential needs. The total cost of borrowing represents approximately 15.5% of the principal, which is relatively affordable compared to higher-interest alternatives like credit cards or personal loans.</p>
+            </div>
+            
+            <div class="card">
+                <h3>Key Considerations</h3>
+                <ul>
+                    <li><strong>Cash Flow:</strong> Fixed annual payment of ₱11,548.74 provides predictable budgeting</li>
+                    <li><strong>Opportunity Cost:</strong> Compare 5% loan cost against potential investment returns</li>
+                    <li><strong>Risk Assessment:</strong> Ensure stable income to meet payment obligations</li>
+                    <li><strong>Early Payment:</strong> Extra payments toward principal can significantly reduce total interest</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Slide 8: Conclusion -->
+        <div class="slide">
+            <h2>Conclusion & Recommendations</h2>
+            <div class="content-grid">
+                <div class="card">
+                    <h3>Mathematical Concepts Applied</h3>
+                    <ul>
+                        <li>Present Value of Annuity formula</li>
+                        <li>Geometric sequence progression</li>
+                        <li>Compound interest calculations</li>
+                        <li>Amortization methodology</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>Business Applications</h3>
+                    <ul>
+                        <li>Loan affordability assessment</li>
+                        <li>Cash flow planning</li>
+                        <li>Interest cost optimization</li>
+                        <li>Financial decision modeling</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="result-highlight" style="margin-top: 30px;">
+                Jake's loan is mathematically sound with manageable payments and reasonable total cost.
+            </div>
+        </div>
+    </div>
+
+    <div class="slide-counter">
+        <span id="current-slide">1</span> / <span id="total-slides">8</span>
+    </div>
+
+    <div class="navigation">
+        <button class="nav-btn" onclick="previousSlide()">← Previous</button>
+        <button class="nav-btn" onclick="nextSlide()">Next →</button>
+    </div>
+
+    <script>
+        let currentSlide = 1;
+        const totalSlides = 8;
+
+        function showSlide(n) {
+            const slides = document.querySelectorAll('.slide');
+            slides.forEach(slide => slide.classList.remove('active'));
+            slides[n - 1].classList.add('active');
+            document.getElementById('current-slide').textContent = n;
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides) {
+                currentSlide++;
+                showSlide(currentSlide);
+            }
+        }
+
+        function previousSlide() {
+            if (currentSlide > 1) {
+                currentSlide--;
+                showSlide(currentSlide);
+            }
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                nextSlide();
+            } else if (e.key === 'ArrowLeft') {
+                previousSlide();
+            }
+        });
+
+        // Initialize
+        document.getElementById('total-slides').textContent = totalSlides;
+    </script>
+</body>
+</html>
