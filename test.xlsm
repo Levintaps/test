@@ -1,0 +1,471 @@
+'==========================================
+' SERIAL NUMBER MANAGER - COMPLETE VBA SOLUTION
+'==========================================
+
+'==========================================
+' MODULE 1: SerialNumberManager (Standard Module)
+'==========================================
+
+Option Explicit
+
+Public Type SerialResult
+    ModelName As String
+    SerialNumber As String
+    DeviceName As String
+    FileName As String
+    SheetName As String
+    Row As Long
+    Column As Long
+    FilePath As String
+End Type
+
+Public Results() As SerialResult
+Public ResultCount As Long
+
+Public Sub ShowSerialManager()
+    ' Entry point to show the UserForm
+    frmSerialManager.Show
+End Sub
+
+Public Function SearchSerialNumber(searchSerial As String, folderPath As String) As Long
+    ' Main search function that searches across all Excel files in the folder
+    Dim wb As Workbook
+    Dim ws As Worksheet
+    Dim fso As Object
+    Dim folder As Object
+    Dim file As Object
+    Dim fileName As String
+    Dim foundCount As Long
+    Dim i As Long, j As Long
+    Dim lastRow As Long, lastCol As Long
+    Dim cellValue As String
+    Dim modelName As String
+    Dim deviceName As String
+    
+    ' Initialize
+    foundCount = 0
+    ReDim Results(0)
+    
+    ' Create FileSystemObject
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    
+    ' Check if folder exists
+    If Not fso.FolderExists(folderPath) Then
+        MsgBox "Folder not found: " & folderPath, vbCritical
+        Exit Function
+    End If
+    
+    Set folder = fso.GetFolder(folderPath)
+    
+    ' Turn off alerts and screen updating for performance
+    Application.DisplayAlerts = False
+    Application.ScreenUpdating = False
+    
+    ' Loop through all Excel files in the folder
+    For Each file In folder.Files
+        fileName = file.Name
+        
+        ' Check if it's an Excel file
+        If Right(LCase(fileName), 5) = ".xlsx" Or _
+           Right(LCase(fileName), 4) = ".xls" Or _
+           Right(LCase(fileName), 5) = ".xlsm" Then
+            
+            On Error Resume Next
+            Set wb = Workbooks.Open(file.Path, ReadOnly:=True)
+            On Error GoTo 0
+            
+            If Not wb Is Nothing Then
+                ' Search in all worksheets
+                For Each ws In wb.Worksheets
+                    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+                    lastCol = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Column
+                    
+                    ' Search through all cells
+                    For i = 1 To lastRow
+                        For j = 1 To lastCol
+                            cellValue = Trim(CStr(ws.Cells(i, j).Value))
+                            
+                            ' Check if this cell contains the serial number
+                            If UCase(cellValue) = UCase(searchSerial) And cellValue <> "" Then
+                                ' Get model name from column A
+                                modelName = Trim(CStr(ws.Cells(i, 1).Value))
+                                
+                                ' Get device name from column header
+                                deviceName = Trim(CStr(ws.Cells(1, j).Value))
+                                
+                                ' Store the result
+                                foundCount = foundCount + 1
+                                ReDim Preserve Results(foundCount)
+                                
+                                With Results(foundCount)
+                                    .ModelName = modelName
+                                    .SerialNumber = cellValue
+                                    .DeviceName = deviceName
+                                    .FileName = fileName
+                                    .SheetName = ws.Name
+                                    .Row = i
+                                    .Column = j
+                                    .FilePath = file.Path
+                                End With
+                            End If
+                        Next j
+                    Next i
+                Next ws
+                
+                wb.Close SaveChanges:=False
+                Set wb = Nothing
+            End If
+        End If
+    Next file
+    
+    ' Restore settings
+    Application.DisplayAlerts = True
+    Application.ScreenUpdating = True
+    
+    ResultCount = foundCount
+    SearchSerialNumber = foundCount
+End Function
+
+Public Function UpdateSerialNumber(resultIndex As Long, newSerial As String) As Boolean
+    ' Update a specific serial number in its original file
+    Dim wb As Workbook
+    Dim ws As Worksheet
+    Dim result As SerialResult
+    
+    On Error GoTo ErrorHandler
+    
+    If resultIndex < 1 Or resultIndex > ResultCount Then
+        MsgBox "Invalid result index", vbCritical
+        Exit Function
+    End If
+    
+    result = Results(resultIndex)
+    
+    ' Open the file
+    Set wb = Workbooks.Open(result.FilePath, ReadOnly:=False)
+    Set ws = wb.Worksheets(result.SheetName)
+    
+    ' Update the cell
+    ws.Cells(result.Row, result.Column).Value = newSerial
+    
+    ' Save and close
+    wb.Save
+    wb.Close
+    
+    UpdateSerialNumber = True
+    Exit Function
+    
+ErrorHandler:
+    MsgBox "Error updating serial number: " & Err.Description, vbCritical
+    If Not wb Is Nothing Then wb.Close SaveChanges:=False
+    UpdateSerialNumber = False
+End Function
+
+Public Function DeleteSerialNumber(resultIndex As Long) As Boolean
+    ' Delete (clear) a specific serial number from its original file
+    Dim wb As Workbook
+    Dim ws As Worksheet
+    Dim result As SerialResult
+    
+    On Error GoTo ErrorHandler
+    
+    If resultIndex < 1 Or resultIndex > ResultCount Then
+        MsgBox "Invalid result index", vbCritical
+        Exit Function
+    End If
+    
+    result = Results(resultIndex)
+    
+    ' Open the file
+    Set wb = Workbooks.Open(result.FilePath, ReadOnly:=False)
+    Set ws = wb.Worksheets(result.SheetName)
+    
+    ' Clear the cell
+    ws.Cells(result.Row, result.Column).Clear
+    
+    ' Save and close
+    wb.Save
+    wb.Close
+    
+    DeleteSerialNumber = True
+    Exit Function
+    
+ErrorHandler:
+    MsgBox "Error deleting serial number: " & Err.Description, vbCritical
+    If Not wb Is Nothing Then wb.Close SaveChanges:=False
+    DeleteSerialNumber = False
+End Function
+
+Public Function AddToMaster(serialNum As String, productName As String, modelName As String, folderPath As String) As Boolean
+    ' Add a new record to Master.xlsx file
+    Dim wb As Workbook
+    Dim ws As Worksheet
+    Dim masterPath As String
+    Dim lastRow As Long
+    
+    On Error GoTo ErrorHandler
+    
+    masterPath = folderPath & "\Master.xlsx"
+    
+    ' Check if Master.xlsx exists, create if not
+    If Dir(masterPath) = "" Then
+        Set wb = Workbooks.Add
+        Set ws = wb.Worksheets(1)
+        ws.Name = "Master"
+        
+        ' Add headers
+        ws.Cells(1, 1).Value = "Serial Number"
+        ws.Cells(1, 2).Value = "Product"
+        ws.Cells(1, 3).Value = "Model"
+        
+        ' Format headers
+        With ws.Range("A1:C1")
+            .Font.Bold = True
+            .Interior.Color = RGB(200, 200, 200)
+        End With
+        
+        wb.SaveAs masterPath
+    Else
+        Set wb = Workbooks.Open(masterPath)
+        Set ws = wb.Worksheets("Master")
+    End If
+    
+    ' Find the last row
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row + 1
+    
+    ' Add the new record
+    ws.Cells(lastRow, 1).Value = serialNum
+    ws.Cells(lastRow, 2).Value = productName
+    ws.Cells(lastRow, 3).Value = modelName
+    
+    ' Save and close
+    wb.Save
+    wb.Close
+    
+    AddToMaster = True
+    Exit Function
+    
+ErrorHandler:
+    MsgBox "Error adding to master file: " & Err.Description, vbCritical
+    If Not wb Is Nothing Then wb.Close SaveChanges:=False
+    AddToMaster = False
+End Function
+
+'==========================================
+' USERFORM: frmSerialManager
+'==========================================
+
+' UserForm Code (Place this in the UserForm module)
+
+Private Sub UserForm_Initialize()
+    ' Initialize the form
+    Me.Caption = "Serial Number Manager"
+    Me.Width = 600
+    Me.Height = 500
+    
+    ' Set default folder path to current workbook's folder
+    txtFolderPath.Text = ThisWorkbook.Path
+    
+    ' Initialize listbox
+    lstResults.ColumnCount = 4
+    lstResults.ColumnWidths = "120;80;120;120"
+    
+    ' Set initial states
+    btnEdit.Enabled = False
+    btnDelete.Enabled = False
+    grpAdd.Enabled = True
+End Sub
+
+Private Sub btnBrowse_Click()
+    ' Browse for folder
+    Dim folderPath As String
+    
+    With Application.FileDialog(msoFileDialogFolderPicker)
+        .Title = "Select Folder Containing Excel Files"
+        .InitialFileName = txtFolderPath.Text
+        
+        If .Show = -1 Then
+            folderPath = .SelectedItems(1)
+            txtFolderPath.Text = folderPath
+        End If
+    End With
+End Sub
+
+Private Sub btnSearch_Click()
+    ' Search for serial number in main folder and all subfolders
+    Dim searchSerial As String
+    Dim folderPath As String
+    Dim foundCount As Long
+    Dim i As Long
+    Dim startTime As Double
+    
+    ' Validate inputs
+    searchSerial = Trim(txtSearchSerial.Text)
+    folderPath = Trim(txtFolderPath.Text)
+    
+    If searchSerial = "" Then
+        MsgBox "Please enter a serial number to search", vbExclamation
+        txtSearchSerial.SetFocus
+        Exit Sub
+    End If
+    
+    If folderPath = "" Then
+        MsgBox "Please select a folder path", vbExclamation
+        btnBrowse.SetFocus
+        Exit Sub
+    End If
+    
+    ' Clear previous results
+    lstResults.Clear
+    btnEdit.Enabled = False
+    btnDelete.Enabled = False
+    
+    ' Show progress
+    lblStatus.Caption = "Searching folder and subfolders..."
+    Me.Repaint
+    startTime = Timer
+    
+    ' Disable form during search to prevent multiple clicks
+    Me.Enabled = False
+    DoEvents
+    
+    ' Perform recursive search
+    foundCount = SearchSerialNumber(searchSerial, folderPath)
+    
+    ' Re-enable form
+    Me.Enabled = True
+    
+    ' Display results
+    If foundCount > 0 Then
+        For i = 1 To foundCount
+            lstResults.AddItem Results(i).ModelName & Chr(9) & _
+                            Results(i).SerialNumber & Chr(9) & _
+                            Results(i).DeviceName & Chr(9) & _
+                            Results(i).FileName & " (" & Results(i).SheetName & ")"
+        Next i
+        
+        lblStatus.Caption = "Found " & foundCount & " result(s) in " & Format(Timer - startTime, "0.0") & " seconds"
+        btnEdit.Enabled = True
+        btnDelete.Enabled = True
+    Else
+        lblStatus.Caption = "No results found in " & Format(Timer - startTime, "0.0") & " seconds"
+    End If
+End Sub
+
+Private Sub lstResults_Click()
+    ' Enable/disable buttons based on selection
+    If lstResults.ListIndex >= 0 Then
+        btnEdit.Enabled = True
+        btnDelete.Enabled = True
+    Else
+        btnEdit.Enabled = False
+        btnDelete.Enabled = False
+    End If
+End Sub
+
+Private Sub btnEdit_Click()
+    ' Edit selected serial number
+    Dim selectedIndex As Long
+    Dim newSerial As String
+    Dim result As SerialResult
+    
+    selectedIndex = lstResults.ListIndex + 1
+    
+    If selectedIndex < 1 Then
+        MsgBox "Please select a result to edit", vbExclamation
+        Exit Sub
+    End If
+    
+    result = Results(selectedIndex)
+    
+    ' Get new serial number
+    newSerial = InputBox("Enter new serial number:", "Edit Serial Number", result.SerialNumber)
+    
+    If newSerial <> "" And newSerial <> result.SerialNumber Then
+        If UpdateSerialNumber(selectedIndex, newSerial) Then
+            MsgBox "Serial number updated successfully", vbInformation
+            ' Refresh the search
+            btnSearch_Click
+        End If
+    End If
+End Sub
+
+Private Sub btnDelete_Click()
+    ' Delete selected serial number
+    Dim selectedIndex As Long
+    Dim result As SerialResult
+    Dim response As VbMsgBoxResult
+    
+    selectedIndex = lstResults.ListIndex + 1
+    
+    If selectedIndex < 1 Then
+        MsgBox "Please select a result to delete", vbExclamation
+        Exit Sub
+    End If
+    
+    result = Results(selectedIndex)
+    
+    ' Confirm deletion
+    response = MsgBox("Are you sure you want to delete the serial number '" & result.SerialNumber & "' from " & result.FileName & "?", vbYesNo + vbQuestion, "Confirm Deletion")
+    
+    If response = vbYes Then
+        If DeleteSerialNumber(selectedIndex) Then
+            MsgBox "Serial number deleted successfully", vbInformation
+            ' Refresh the search
+            btnSearch_Click
+        End If
+    End If
+End Sub
+
+Private Sub btnAddToMaster_Click()
+    ' Add new record to Master.xlsx
+    Dim serialNum As String
+    Dim productName As String
+    Dim modelName As String
+    Dim folderPath As String
+    
+    ' Validate inputs
+    serialNum = Trim(txtNewSerial.Text)
+    productName = Trim(txtNewProduct.Text)
+    modelName = Trim(txtNewModel.Text)
+    folderPath = Trim(txtFolderPath.Text)
+    
+    If serialNum = "" Then
+        MsgBox "Please enter a serial number", vbExclamation
+        txtNewSerial.SetFocus
+        Exit Sub
+    End If
+    
+    If productName = "" Then
+        MsgBox "Please enter a product name", vbExclamation
+        txtNewProduct.SetFocus
+        Exit Sub
+    End If
+    
+    If modelName = "" Then
+        MsgBox "Please enter a model name", vbExclamation
+        txtNewModel.SetFocus
+        Exit Sub
+    End If
+    
+    If folderPath = "" Then
+        MsgBox "Please select a folder path", vbExclamation
+        btnBrowse.SetFocus
+        Exit Sub
+    End If
+    
+    ' Add to master
+    If AddToMaster(serialNum, productName, modelName, folderPath) Then
+        MsgBox "Record added to Master.xlsx successfully", vbInformation
+        
+        ' Clear the input fields
+        txtNewSerial.Text = ""
+        txtNewProduct.Text = ""
+        txtNewModel.Text = ""
+    End If
+End Sub
+
+Private Sub btnClose_Click()
+    ' Close the form
+    Unload Me
+End Sub
