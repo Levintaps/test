@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Questionnaire</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+  <div class="container my-5">
+    <div class="row">
+      <!-- Question Panel -->
+      <div class="col-md-6 mb-3">
+        <div class="p-4 bg-light rounded shadow-sm">
+          <h4>Question <span id="qNumber">1</span></h4>
+          <p id="questionText">Loading...</p>
+        </div>
+        <p class="text-muted mt-3 text-center" id="progressText">Question 1 of 5</p>
+      </div>
+      
+      <!-- Text Field -->
+      <div class="col-md-6 mb-3">
+        <div class="p-4 bg-white rounded shadow-sm">
+          <label for="answer" class="form-label">Your Answer</label>
+          <textarea id="answer" class="form-control" rows="4" placeholder="Type your answer here..."></textarea>
+          <button id="submitBtn" class="btn btn-primary mt-3">Submit</button>
+          <div id="loadingSpinner" class="d-none mt-3">
+            <div class="spinner-border spinner-border-sm" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <span class="ms-2">Evaluating answer...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // Gemini API configuration
+    const GEMINI_API_KEY = 'AIzaSyDPeldU5wfja_V63Sr-H0M9FKi9Vo_yUl4';
+    const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent';
+
+    // List of questions
+    const questions = [
+      "Write a PHP program that takes two numbers, adds them together, and prints the result.",
+      "Create a PHP program that checks if a number is even or odd and prints the result."
+    ];
+
+    let currentIndex = 0;
+    const questionText = document.getElementById("questionText");
+    const qNumber = document.getElementById("qNumber");
+    const progressText = document.getElementById("progressText");
+    const answerField = document.getElementById("answer");
+    const submitBtn = document.getElementById("submitBtn");
+    const loadingSpinner = document.getElementById("loadingSpinner");
+
+    // Store answers and evaluations
+    const answers = [];
+    const evaluations = [];
+
+    // Function to evaluate answer using Gemini API
+    async function evaluateAnswer(question, answer) {
+      const prompt = `
+        As a programming instructor, evaluate this PHP programming answer:
+        
+        Question: ${question}
+        
+        Student Answer: ${answer}
+        
+        Please provide:
+        1. A score from 0-10
+        2. Brief feedback on what's correct
+        3. Areas for improvement (if any)
+        4. Whether the code would work if executed
+        
+        Format your response as JSON:
+        {
+          "score": number,
+          "feedback": "string",
+          "improvements": "string",
+          "works": boolean
+        }
+      `;
+
+      try {
+        const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: prompt
+              }]
+            }]
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const aiResponse = data.candidates[0].content.parts[0].text;
+        
+        // Try to parse JSON from the response
+        try {
+          const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            return JSON.parse(jsonMatch[0]);
+          } else {
+            // Fallback if JSON parsing fails
+            return {
+              score: 5,
+              feedback: aiResponse.substring(0, 200) + "...",
+              improvements: "Please review the code structure and syntax.",
+              works: false
+            };
+          }
+        } catch (parseError) {
+          return {
+            score: 5,
+            feedback: aiResponse.substring(0, 200) + "...",
+            improvements: "Please review the code structure and syntax.",
+            works: false
+          };
+        }
+      } catch (error) {
+        console.error('Error evaluating answer:', error);
+        return {
+          score: 0,
+          feedback: "Unable to evaluate answer due to API error.",
+          improvements: "Please try again later.",
+          works: false
+        };
+      }
+    }
+
+    // Load question
+    function loadQuestion() {
+      if (currentIndex < questions.length) {
+        qNumber.textContent = currentIndex + 1;
+        questionText.textContent = questions[currentIndex];
+        progressText.textContent = `Question ${currentIndex + 1} of ${questions.length}`;
+        answerField.value = "";
+        submitBtn.disabled = false;
+      } else {
+        // Show summary when finished
+        showResults();
+      }
+    }
+
+    // Show results with AI evaluations
+    function showResults() {
+      const totalScore = evaluations.reduce((sum, eval) => sum + eval.score, 0);
+      const maxScore = evaluations.length * 10;
+      const percentage = ((totalScore / maxScore) * 100).toFixed(1);
+      
+      let resultsHTML = `
+        <div class="col-12">
+          <div class="p-4 bg-success text-white rounded shadow-sm mb-4">
+            <h4>Quiz Completed!</h4>
+            <p class="mb-0">Overall Score: ${totalScore}/${maxScore} (${percentage}%)</p>
+          </div>
+          
+          <div class="accordion" id="resultsAccordion">
+      `;
+
+      answers.forEach((answer, i) => {
+        const evaluation = evaluations[i];
+        const scoreClass = evaluation.score >= 7 ? 'success' : evaluation.score >= 5 ? 'warning' : 'danger';
+        
+        resultsHTML += `
+          <div class="accordion-item">
+            <h2 class="accordion-header" id="heading${i}">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${i}">
+                <strong>Question ${i + 1}</strong>
+                <span class="badge bg-${scoreClass} ms-auto me-3">${evaluation.score}/10</span>
+              </button>
+            </h2>
+            <div id="collapse${i}" class="accordion-collapse collapse" data-bs-parent="#resultsAccordion">
+              <div class="accordion-body">
+                <p><strong>Question:</strong> ${questions[i]}</p>
+                <p><strong>Your Answer:</strong></p>
+                <pre class="bg-light p-2 rounded"><code>${answer}</code></pre>
+                
+                <div class="mt-3">
+                  <h6>AI Evaluation:</h6>
+                  <p><strong>Score:</strong> ${evaluation.score}/10</p>
+                  <p><strong>Works:</strong> <span class="badge ${evaluation.works ? 'bg-success' : 'bg-danger'}">${evaluation.works ? 'Yes' : 'No'}</span></p>
+                  <p><strong>Feedback:</strong> ${evaluation.feedback}</p>
+                  ${evaluation.improvements ? `<p><strong>Improvements:</strong> ${evaluation.improvements}</p>` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      resultsHTML += `
+          </div>
+          <div class="mt-4 text-center">
+            <button class="btn btn-primary" onclick="location.reload()">Start Over</button>
+          </div>
+        </div>
+      `;
+
+      document.querySelector(".row").innerHTML = resultsHTML;
+    }
+
+    // Handle submit
+    submitBtn.addEventListener("click", async () => {
+      const userAnswer = answerField.value.trim();
+      if (userAnswer === "") {
+        alert("Please enter an answer before proceeding!");
+        return;
+      }
+
+      // Show loading state
+      submitBtn.disabled = true;
+      loadingSpinner.classList.remove('d-none');
+
+      // Store the answer
+      answers.push(userAnswer);
+
+      try {
+        // Evaluate the answer using AI
+        const evaluation = await evaluateAnswer(questions[currentIndex], userAnswer);
+        evaluations.push(evaluation);
+      } catch (error) {
+        console.error('Evaluation error:', error);
+        // Add a default evaluation if API fails
+        evaluations.push({
+          score: 0,
+          feedback: "Evaluation failed. Please try again.",
+          improvements: "Unable to evaluate at this time.",
+          works: false
+        });
+      }
+
+      // Hide loading state
+      loadingSpinner.classList.add('d-none');
+
+      // Move to next question
+      currentIndex++;
+      loadQuestion();
+    });
+
+    // Initialize
+    loadQuestion();
+  </script>
+</body>
+</html>
