@@ -1,0 +1,9 @@
+UPDATE attendance_records 
+SET 
+    time_in = '2025-10-10 11:58:00',
+    total_hours = ROUND(GREATEST(TIMESTAMPDIFF(HOUR, '2025-10-10 11:58:00', time_out) - IF(TIMESTAMPDIFF(HOUR, '2025-10-10 11:58:00', time_out) >= 5, 1, 0), 0)),
+    regular_hours = LEAST(ROUND(GREATEST(TIMESTAMPDIFF(HOUR, '2025-10-10 11:58:00', time_out) - IF(TIMESTAMPDIFF(HOUR, '2025-10-10 11:58:00', time_out) >= 5, 1, 0), 0)), 8),
+    overtime_hours = GREATEST(ROUND(GREATEST(TIMESTAMPDIFF(HOUR, '2025-10-10 11:58:00', time_out) - IF(TIMESTAMPDIFF(HOUR, '2025-10-10 11:58:00', time_out) >= 5, 1, 0), 0)) - 8, 0),
+    break_deducted = TIMESTAMPDIFF(HOUR, '2025-10-10 11:58:00', time_out) >= 5
+WHERE student_id = (SELECT id FROM students WHERE id_badge = '9455') 
+  AND DATE(attendance_date) = '2025-10-10';
