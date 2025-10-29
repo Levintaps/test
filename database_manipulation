@@ -17,3 +17,10 @@ SET total_accumulated_hours = (
       AND total_hours IS NOT NULL
 )
 WHERE id_badge = '9455';
+
+UPDATE students s
+SET total_accumulated_hours = (
+    SELECT COALESCE(SUM(ar.total_hours), 0)
+    FROM attendance_records ar
+    WHERE ar.student_id = s.id
+);
