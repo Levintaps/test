@@ -7,3 +7,13 @@ SET
     break_deducted = TIMESTAMPDIFF(HOUR, '2025-10-10 11:58:00', time_out) >= 5
 WHERE student_id = (SELECT id FROM students WHERE id_badge = '9455') 
   AND DATE(attendance_date) = '2025-10-10';
+
+
+UPDATE students 
+SET total_accumulated_hours = (
+    SELECT COALESCE(SUM(total_hours), 0) 
+    FROM attendance_records 
+    WHERE student_id = students.id 
+      AND total_hours IS NOT NULL
+)
+WHERE id_badge = '9455';
