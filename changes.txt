@@ -1,0 +1,113 @@
+private HoursCalculation calculateStrictScheduleHours(Student student, LocalDateTime timeIn, LocalDateTime timeOut) {
+    LocalTime actualTimeIn = timeIn.toLocalTime();
+    LocalTime actualTimeOut = timeOut.toLocalTime();
+    LocalTime scheduledStart = student.getScheduledStartTime();
+    LocalTime scheduledEnd = student.getScheduledEndTime();
+    int gracePeriod = student.getGracePeriodMinutes() != null ? student.getGracePeriodMinutes() : 5;
+
+    // Calculate if they were late (beyond grace period)
+    boolean wasLate = actualTimeIn.isAfter(scheduledStart.plusMinutes(gracePeriod));
+    long lateMinutes = 0;
+    
+    if (wasLate) {
+        lateMinutes = Duration.between(scheduledStart.plusMinutes(gracePeriod), actualTimeIn).toMinutes();
+    }
+
+    // Calculate overtime/extra minutes stayed
+    long overtimeMinutes = 0;
+    if (actualTimeOut.isAfter(scheduledEnd)) {
+        overtimeMinutes = Duration.between(scheduledEnd, actualTimeOut).toMinutes();
+    }
+
+    // Check if overtime covers the late time
+    boolean overtimeCoversLate = overtimeMinutes >= lateMinutes;
+
+    // Calculate scheduled duration (scheduled hours)
+    Duration scheduledDuration = Duration.between(scheduledStart, scheduledEnd);
+    long scheduledMinutes = scheduledDuration.toMinutes();
+
+    HoursCalculation calculation = new HoursCalculation();
+
+    // Deduct break if worked 5+ hours
+    if (scheduledMinutes >= 300) {
+        scheduledMinutes -= 60;
+        calculation.setBreakDeducted(true);
+    } else {
+        calculation.setBreakDeducted(false);
+    }
+
+    // If they were late but overtime covered it, give them full scheduled hours
+    if (wasLate && overtimeCoversLate) {
+        // Full scheduled hours (overtime made up for lateness)
+        double regularHours = Math.min(Math.floor(scheduledMinutes / 60.0), REGULAR_HOURS_CAP);
+        
+        // Any extra overtime beyond making up for late time
+        long extraOvertimeMinutes = overtimeMinutes - lateMinutes;
+        double extraOvertimeHours = convertMinutesToHoursWithRounding(extraOvertimeMinutes);
+        
+        calculation.setTotalHours(regularHours + extraOvertimeHours);
+        calculation.setRegularHours(regularHours);
+        calculation.setOvertimeHours(extraOvertimeHours);
+        calculation.setUndertimeHours(0.0);
+        
+    } else if (wasLate && !overtimeCoversLate) {
+        // They were late and didn't stay long enough to make up for it
+        // Calculate actual work time
+        Duration actualDuration = Duration.between(timeIn, timeOut);
+        long actualMinutes = actualDuration.toMinutes();
+        
+        if (actualMinutes >= 300) {
+            actualMinutes -= 60;
+            calculation.setBreakDeducted(true);
+        }
+        
+        double actualHours = convertMinutesToHoursWithRounding(actualMinutes);
+        long undertimeMinutes = lateMinutes - overtimeMinutes;
+        double undertimeHours = convertMinutesToHoursWithRounding(undertimeMinutes);
+        
+        calculation.setTotalHours(actualHours);
+        calculation.setRegularHours(actualHours);
+        calculation.setOvertimeHours(0.0);
+        calculation.setUndertimeHours(undertimeHours);
+        
+    } else if (actualTimeOut.isAfter(scheduledEnd)) {
+        // Not late, and stayed overtime
+        double regularHours = Math.min(Math.floor(scheduledMinutes / 60.0), REGULAR_HOURS_CAP);
+        double overtimeHours = convertMinutesToHoursWithRounding(overtimeMinutes);
+        
+        calculation.setTotalHours(regularHours + overtimeHours);
+        calculation.setRegularHours(regularHours);
+        calculation.setOvertimeHours(overtimeHours);
+        calculation.setUndertimeHours(0.0);
+        
+    } else if (actualTimeOut.isBefore(scheduledEnd)) {
+        // Left early (undertime)
+        Duration actualDuration = Duration.between(timeIn, timeOut);
+        long actualMinutes = actualDuration.toMinutes();
+        
+        if (actualMinutes >= 300) {
+            actualMinutes -= 60;
+            calculation.setBreakDeducted(true);
+        }
+        
+        double actualHours = convertMinutesToHoursWithRounding(actualMinutes);
+        Duration undertime = Duration.between(actualTimeOut, scheduledEnd);
+        double undertimeHours = convertMinutesToHoursWithRounding(undertime.toMinutes());
+        
+        calculation.setTotalHours(actualHours);
+        calculation.setRegularHours(actualHours);
+        calculation.setOvertimeHours(0.0);
+        calculation.setUndertimeHours(undertimeHours);
+        
+    } else {
+        // Exactly on time
+        double regularHours = Math.min(Math.floor(scheduledMinutes / 60.0), REGULAR_HOURS_CAP);
+        
+        calculation.setTotalHours(regularHours);
+        calculation.setRegularHours(regularHours);
+        calculation.setOvertimeHours(0.0);
+        calculation.setUndertimeHours(0.0);
+    }
+
+    return calculation;
+}
